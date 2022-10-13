@@ -34,6 +34,28 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+int cowfault(pagetable_t pagetable, uint64 va)
+{
+  if (va >= MAXVA)
+    return -1;
+  pte_t *pte = walk(pagetable, va, 0);
+  if (pte == 0)
+    return -1;
+  if ((*pte & PTE_U) == 0 || (*pte & PTE_V) == 0)
+    return -1;
+  uint64 pa1 = PTE2PA(*pte);
+  uint64 pa2 = (uint64)kalloc();
+  if (pa2 == 0){
+    //panic("cow panic kalloc");
+    return -1;
+  }
+ 
+  memmove((void *)pa2, (void *)pa1, PGSIZE);
+  *pte = PA2PTE(pa2) | PTE_U | PTE_V | PTE_W | PTE_X|PTE_R;
+   kfree((void *)pa1);
+  return 0;
+}
+
 void
 usertrap(void)
 {
@@ -66,17 +88,16 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
-    if (p->alarm_on == 0) //(which_dev == 2 && 
-    {
-      // Save trapframe
-      p->alarm_on = 1;
-      struct trapframe *tf = kalloc();
-      memmove(tf, p->trapframe, PGSIZE);
-      p->user_saved_tf = tf;
-
-      p->alarm_ticks++;
-    }
+  }
+  else if (r_scause() == 15)
+  {
+   if ((cowfault(p->pagetable, r_stval()) )< 0)
+   {
+     p->killed = 1;
+   }
+  } 
+  else if((which_dev = devintr()) != 0){
+   //ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -89,12 +110,6 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
    #if !defined(FCFS) && !defined(PBS)
     if(which_dev == 2) {
-      if(p->alarm_intervals!=0 && ++p->alarm_ticks==p->alarm_intervals){
-        p->user_saved_tf = p->trapframe + 512;
-        memmove(p->user_saved_tf, p->trapframe, sizeof(struct trapframe));
-        p->trapframe->epc = p->alarm_handler_addr;
-      }
-
       #ifdef MLFQ
         // Demotion of process if time slice has elapsed
         struct proc *p = myproc();
@@ -110,7 +125,21 @@ usertrap(void)
       #endif
     }
   #endif
-
+  // / give up the CPU if this is a timer interrupt.
+  if(which_dev == 2) {
+    if(p->alarm_interval != 0) { 
+      if(--p->alarm_ticks <= 0) { 
+        if(!p->alarm_goingoff) { 
+          p->alarm_ticks = p->alarm_interval;
+          // jump to execute alarm_handler
+          *p->alarm_trapframe = *p->trapframe; // backup trapframe
+          p->trapframe->epc = (uint64)p->alarm_handler;
+          p->alarm_goingoff = 1;
+        }
+      }
+    }
+    yield();
+  }
   usertrapret();
 }
 
@@ -265,4 +294,18 @@ devintr()
   } else {
     return 0;
   }
+}
+int sigalarm(int ticks, void(*handler)()) {
+  struct proc *p = myproc();
+  p->alarm_interval = ticks;
+  p->alarm_handler = handler;
+  p->alarm_ticks = ticks;
+  return 0;
+}
+
+int sigreturn(){
+  struct proc *p = myproc();
+  *p->trapframe = *p->alarm_trapframe;
+  p->alarm_goingoff = 0;
+  return p->trapframe->a0;
 }
