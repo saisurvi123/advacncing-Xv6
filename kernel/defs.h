@@ -110,8 +110,8 @@ void            trace(uint64);
 int             waitx(uint64, uint*, uint*);
 void            update_time(void);
 int             set_priority(uint64, uint64);
-
-
+int             sigalarm(int ticks, void (*handler)());
+int             sigreturn(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -153,6 +153,7 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
+    
 
 // uart.c
 void            uartinit(void);

@@ -53,7 +53,6 @@ ifndef SCHEDULER
 	SCHEDULER := DEFAULT
 endif
 
-
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
@@ -142,7 +141,7 @@ UPROGS=\
 	$U/_test\
 	$U/_strace\
 	$U/_setpriority\
-
+    $U/_alarmtest\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)

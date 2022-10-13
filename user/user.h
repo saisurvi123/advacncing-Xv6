@@ -25,6 +25,8 @@ int uptime(void);
 int trace(int);
 int waitx(int*, int* /*wtime*/, int* /*rtime*/);
 int set_priority(int, int);
+int sigalarm(int ticks, void (*handler)());
+int sigreturn(void);
 
 
 

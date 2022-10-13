@@ -106,6 +106,8 @@ extern uint64 sys_close(void);
 extern uint64 sys_trace(void);
 extern uint64 sys_waitx(void);
 extern uint64 sys_set_priority(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
 
 
 
@@ -135,7 +137,9 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_waitx]   sys_waitx,
 [SYS_trace]   sys_trace,
-[SYS_set_priority]  sys_set_priority
+[SYS_set_priority]  sys_set_priority,
+[SYS_sigalarm] sys_sigalarm,
+[SYS_sigreturn] sys_sigreturn,
 
 };
 

@@ -29,6 +29,7 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -66,7 +67,16 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
-    // ok
+    if (p->alarm_on == 0) //(which_dev == 2 && 
+    {
+      // Save trapframe
+      p->alarm_on = 1;
+      struct trapframe *tf = kalloc();
+      memmove(tf, p->trapframe, PGSIZE);
+      p->user_saved_tf = tf;
+
+      p->alarm_ticks++;
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -79,6 +89,12 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
    #if !defined(FCFS) && !defined(PBS)
     if(which_dev == 2) {
+      if(p->alarm_intervals!=0 && ++p->alarm_ticks==p->alarm_intervals){
+        p->user_saved_tf = p->trapframe + 512;
+        memmove(p->user_saved_tf, p->trapframe, sizeof(struct trapframe));
+        p->trapframe->epc = p->alarm_handler_addr;
+      }
+
       #ifdef MLFQ
         // Demotion of process if time slice has elapsed
         struct proc *p = myproc();
@@ -101,6 +117,7 @@ usertrap(void)
 //
 // return to user space
 //
+
 void
 usertrapret(void)
 {

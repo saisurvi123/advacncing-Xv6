@@ -117,6 +117,12 @@ struct proc {
   uint ctime;                  // When was the process created 
   uint etime;                  // When did the process exited
 
+   int alarm_on;
+  uint64 alarm_handler_addr; //handler address (handler)
+  int alarm_ticks;     // ticks have passed (passed ticks)
+  int alarm_intervals; // alarm intervals (interval)
+  struct trapframe *user_saved_tf; // cache the trapframe when timer fires
+
   #ifdef PBS
     uint s_start_time;           // When the process was last put to sleep
     uint stime;                  // The sleeping time since it was last scheduled
